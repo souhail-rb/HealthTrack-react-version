@@ -1,0 +1,261 @@
+{% extends 'tracker/base.html' %}
+
+{% block extra_css %}
+  <style>
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+    .page-header h1 { font-family: var(--font-display); font-size: 30px; letter-spacing: -0.4px; }
+    .page-header p { color: var(--text-secondary); font-size: 14px; margin-top: 3px; }
+    .header-actions { display: flex; gap: 10px; }
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: var(--radius-sm); font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--surface); color: var(--text-primary); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--surface-alt); }
+    .btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    /* FILTER BAR */
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+    .search-input { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 14px; flex: 1; max-width: 320px; }
+    .search-input svg { width: 15px; height: 15px; stroke: var(--text-muted); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+    .search-input input { border: none; background: transparent; font-family: var(--font-body); font-size: 13px; color: var(--text-primary); outline: none; width: 100%; }
+    .filter-tabs { display: flex; gap: 4px; background: var(--surface-alt); padding: 4px; border-radius: var(--radius-sm); }
+    .filter-tab { padding: 6px 14px; border-radius: 7px; font-size: 13px; cursor: pointer; border: none; background: transparent; font-family: var(--font-body); color: var(--text-secondary); transition: all 0.15s; }
+    .filter-tab.active { background: var(--surface); color: var(--text-primary); font-weight: 500; box-shadow: 0 1px 4px rgba(26,23,20,0.08); }
+    .spacer { flex: 1; }
+
+    /* TABLE */
+    .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--surface-alt); }
+    th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+    td { padding: 14px 16px; font-size: 13px; border-top: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: #FAFAF8; }
+    .patient-cell { display: flex; align-items: center; gap: 12px; }
+    .pt-avatar { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+    .pt-name { font-size: 13px; font-weight: 500; }
+    .pt-id { font-size: 11px; color: var(--text-muted); }
+    .status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+    .status::before { content:''; width: 5px; height: 5px; border-radius: 50%; }
+    .status-active { background: var(--accent-light); color: var(--accent); } .status-active::before { background: var(--accent); }
+    .status-inactive { background: var(--surface-alt); color: var(--text-muted); } .status-inactive::before { background: var(--text-muted); }
+    .status-critical { background: var(--danger-light); color: var(--danger); } .status-critical::before { background: var(--danger); }
+    .status-pending { background: var(--warn-light); color: var(--warn); } .status-pending::before { background: var(--warn); }
+    .action-btns { display: flex; gap: 6px; }
+    .icon-btn { width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: grid; place-items: center; transition: all 0.15s; }
+    .icon-btn:hover { background: var(--surface-alt); border-color: var(--accent); }
+    .icon-btn svg { width: 14px; height: 14px; stroke: var(--text-secondary); fill: none; stroke-width: 1.8; }
+    .pagination { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--border); }
+    .pagination-info { font-size: 13px; color: var(--text-muted); }
+    .pagination-btns { display: flex; gap: 4px; }
+    .pg-btn { padding: 6px 12px; border: 1px solid var(--border); background: var(--surface); border-radius: 7px; font-family: var(--font-body); font-size: 13px; cursor: pointer; transition: all 0.15s; }
+    .pg-btn:hover, .pg-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    /* AVATARS colors */
+    .av-teal { background: #E8F2EF; color: #1D5C4D; }
+    .av-blue { background: #EAF0FB; color: #2D5AC4; }
+    .av-rose { background: #FAEAE8; color: #C04A3B; }
+    .av-amber { background: #FBF2E8; color: #B8752A; }
+    .av-purple { background: #F0EAFB; color: #7C4AC4; }
+    .av-slate { background: #EDF0F4; color: #4A6278; }
+
+    /* DRAWER */
+    .drawer-overlay { position: fixed; inset: 0; background: rgba(26,23,20,0.3); z-index: 200; display: none; opacity: 0; transition: opacity 0.2s; }
+    .drawer-overlay.open { display: block; opacity: 1; }
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 440px; background: var(--surface); box-shadow: -8px 0 32px rgba(26,23,20,0.12); z-index: 201; transform: translateX(100%); transition: transform 0.25s ease; display: flex; flex-direction: column; }
+    .drawer.open { transform: translateX(0); }
+    .drawer-header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .drawer-title { font-family: var(--font-display); font-size: 22px; }
+    .close-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; display: grid; place-items: center; }
+    .close-btn svg { width: 16px; height: 16px; stroke: var(--text-secondary); fill: none; stroke-width: 2; }
+    .drawer-body { flex: 1; overflow-y: auto; padding: 24px; }
+    .drawer-section { margin-bottom: 24px; }
+    .drawer-section-title { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .info-item label { font-size: 11px; color: var(--text-muted); font-weight: 500; display: block; margin-bottom: 3px; }
+    .info-item span { font-size: 13px; font-weight: 500; }
+    .drawer-footer { padding: 20px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+  </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+      <div>
+        <h1>Patients</h1>
+        <p>142 active patients · 4 new this week</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Export</button>
+        <button class="btn btn-primary" onclick="openDrawer()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add Patient</button>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div class="search-input">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input placeholder="Search by name, ID, or diagnosis…" oninput="filterTable(this.value)" />
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="setFilter(this,'all')">All</button>
+        <button class="filter-tab" onclick="setFilter(this,'active')">Active</button>
+        <button class="filter-tab" onclick="setFilter(this,'critical')">Critical</button>
+        <button class="filter-tab" onclick="setFilter(this,'pending')">Pending</button>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" style="font-size:12px;padding:7px 12px;">
+        <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Filters
+      </button>
+    </div>
+
+    <div class="table-card">
+      <table id="patientTable">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Age / Sex</th>
+            <th>Diagnosis</th>
+            <th>Physician</th>
+            <th>Last Visit</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-status="active">
+            <td><div class="patient-cell"><div class="pt-avatar av-teal">KA</div><div><div class="pt-name">Karima Alaoui</div><div class="pt-id">#PT-0041</div></div></div></td>
+            <td>54 / F</td><td>Type 2 Diabetes</td><td>Dr. Idrissi</td><td>Apr 20, 2026</td>
+            <td><span class="status status-active">Active</span></td>
+            <td><div class="action-btns"><button class="icon-btn" onclick="openDrawer('KA','Karima Alaoui','#PT-0041','54','F','Type 2 Diabetes','Dr. Idrissi','Apr 20, 2026','Active')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></td>
+          </tr>
+          <tr data-status="critical">
+            <td><div class="patient-cell"><div class="pt-avatar av-rose">YC</div><div><div class="pt-name">Youssef Chraibi</div><div class="pt-id">#PT-0038</div></div></div></td>
+            <td>67 / M</td><td>Hypertension · Stage III</td><td>Dr. Idrissi</td><td>Apr 20, 2026</td>
+            <td><span class="status status-critical">Critical</span></td>
+            <td><div class="action-btns"><button class="icon-btn" onclick="openDrawer('YC','Youssef Chraibi','#PT-0038','67','M','Hypertension Stage III','Dr. Idrissi','Apr 20, 2026','Critical')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></td>
+          </tr>
+          <tr data-status="active">
+            <td><div class="patient-cell"><div class="pt-avatar av-blue">MB</div><div><div class="pt-name">Mohamed Benali</div><div class="pt-id">#PT-0044</div></div></div></td>
+            <td>42 / M</td><td>Arrhythmia</td><td>Dr. Tazi</td><td>Apr 20, 2026</td>
+            <td><span class="status status-active">Active</span></td>
+            <td><div class="action-btns"><button class="icon-btn" onclick="openDrawer('MB','Mohamed Benali','#PT-0044','42','M','Arrhythmia','Dr. Tazi','Apr 20, 2026','Active')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></td>
+          </tr>
+          <tr data-status="pending">
+            <td><div class="patient-cell"><div class="pt-avatar av-amber">SZ</div><div><div class="pt-name">Sara Ziani</div><div class="pt-id">#PT-0046</div></div></div></td>
+            <td>31 / F</td><td>Motor Disorder (eval.)</td><td>Dr. Idrissi</td><td>Apr 19, 2026</td>
+            <td><span class="status status-pending">Pending</span></td>
+            <td><div class="action-btns"><button class="icon-btn" onclick="openDrawer('SZ','Sara Ziani','#PT-0046','31','F','Motor Disorder (eval.)','Dr. Idrissi','Apr 19, 2026','Pending')"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></td>
+          </tr>
+          <tr data-status="active">
+            <td><div class="patient-cell"><div class="pt-avatar av-purple">HO</div><div><div class="pt-name">Houda Ouali</div><div class="pt-id">#PT-0039</div></div></div></td>
+            <td>48 / F</td><td>Chronic Anemia</td><td>Dr. Tazi</td><td>Apr 18, 2026</td>
+            <td><span class="status status-active">Active</span></td>
+            <td><div class="action-btns"><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></td>
+          </tr>
+          <tr data-status="inactive">
+            <td><div class="patient-cell"><div class="pt-avatar av-slate">RA</div><div><div class="pt-name">Rachid Amrani</div><div class="pt-id">#PT-0033</div></div></div></td>
+            <td>60 / M</td><td>Post-op Recovery</td><td>Dr. El Fassi</td><td>Apr 10, 2026</td>
+            <td><span class="status status-inactive">Discharged</span></td>
+            <td><div class="action-btns"><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button><button class="icon-btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <span class="pagination-info">Showing 6 of 142 patients</span>
+        <div class="pagination-btns">
+          <button class="pg-btn">←</button>
+          <button class="pg-btn active">1</button>
+          <button class="pg-btn">2</button>
+          <button class="pg-btn">3</button>
+          <button class="pg-btn">…</button>
+          <button class="pg-btn">24</button>
+          <button class="pg-btn">→</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- DRAWER -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <h2 class="drawer-title" id="drawerTitle">Patient Details</h2>
+      <button class="close-btn" onclick="closeDrawer()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-section">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+          <div class="pt-avatar av-teal" id="drawerAvatar" style="width:52px;height:52px;font-size:16px;border-radius:14px;"></div>
+          <div>
+            <div style="font-size:17px;font-weight:600;" id="drawerName"></div>
+            <div style="font-size:13px;color:var(--text-muted);" id="drawerIdStatus"></div>
+          </div>
+        </div>
+        <div class="drawer-section-title">Patient Information</div>
+        <div class="info-grid">
+          <div class="info-item"><label>Age</label><span id="dAge">—</span></div>
+          <div class="info-item"><label>Sex</label><span id="dSex">—</span></div>
+          <div class="info-item"><label>Diagnosis</label><span id="dDx">—</span></div>
+          <div class="info-item"><label>Physician</label><span id="dDoc">—</span></div>
+          <div class="info-item"><label>Last Visit</label><span id="dVisit">—</span></div>
+          <div class="info-item"><label>Status</label><span id="dStatus">—</span></div>
+        </div>
+      </div>
+      <div class="drawer-section">
+        <div class="drawer-section-title">Recent Notes</div>
+        <div style="background:var(--surface-alt);border-radius:var(--radius-sm);padding:14px;font-size:13px;color:var(--text-secondary);line-height:1.6;">Patient presented for routine follow-up. Vitals stable. Medication compliance confirmed. Recommended follow-up in 4 weeks.</div>
+      </div>
+      <div class="drawer-section">
+        <div class="drawer-section-title">Upcoming</div>
+        <div style="background:var(--surface-alt);border-radius:var(--radius-sm);padding:14px;font-size:13px;">
+          <div style="font-weight:500;">Next Appointment</div>
+          <div style="color:var(--text-muted);margin-top:3px;">May 4, 2026 · 10:00 AM</div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-footer">
+      <button class="btn btn-primary" style="flex:1;">Open Full Record</button>
+      <a href="{% url 'tracker:hand_tracking' %}" class="btn btn-secondary">Hand Tracking</a>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    function openDrawer(initials, name, id, age, sex, dx, doc, visit, status) {
+      if (name) {
+        document.getElementById('drawerTitle').textContent = 'Patient Details';
+        document.getElementById('drawerAvatar').textContent = initials;
+        document.getElementById('drawerName').textContent = name;
+        document.getElementById('drawerIdStatus').textContent = id + ' · ' + status;
+        document.getElementById('dAge').textContent = age;
+        document.getElementById('dSex').textContent = sex === 'F' ? 'Female' : 'Male';
+        document.getElementById('dDx').textContent = dx;
+        document.getElementById('dDoc').textContent = doc;
+        document.getElementById('dVisit').textContent = visit;
+        document.getElementById('dStatus').textContent = status;
+      } else {
+        document.getElementById('drawerTitle').textContent = 'New Patient';
+      }
+      document.getElementById('drawerOverlay').classList.add('open');
+      document.getElementById('drawer').classList.add('open');
+    }
+    function closeDrawer() {
+      document.getElementById('drawerOverlay').classList.remove('open');
+      document.getElementById('drawer').classList.remove('open');
+    }
+    function setFilter(el, type) {
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      const rows = document.querySelectorAll('#patientTable tbody tr');
+      rows.forEach(r => {
+        r.style.display = (type === 'all' || r.dataset.status === type) ? '' : 'none';
+      });
+    }
+    function filterTable(q) {
+      const rows = document.querySelectorAll('#patientTable tbody tr');
+      rows.forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+      });
+    }
+  </script>
+{% endblock %}

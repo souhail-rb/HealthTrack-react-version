@@ -1,0 +1,177 @@
+{% extends 'tracker/base.html' %}
+
+{% block extra_css %}
+  <style>
+    /* WELCOME HERO */
+    .welcome-hero {
+      background: var(--accent);
+      padding: 56px 48px;
+      position: relative; overflow: hidden;
+    }
+    .welcome-hero::before {
+      content: ''; position: absolute; width: 700px; height: 700px; border-radius: 50%;
+      background: rgba(255,255,255,0.04); top: -350px; right: -200px;
+    }
+    .welcome-hero::after {
+      content: ''; position: absolute; width: 300px; height: 300px; border-radius: 50%;
+      background: rgba(255,255,255,0.04); bottom: -150px; left: 200px;
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 600px; }
+    .hero-greeting { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 500; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .hero-title { font-family: var(--font-display); font-size: 40px; color: white; line-height: 1.15; letter-spacing: -0.5px; margin-bottom: 14px; }
+    .hero-title em { font-style: italic; opacity: 0.75; }
+    .hero-desc { color: rgba(255,255,255,0.65); font-size: 15px; line-height: 1.6; margin-bottom: 28px; }
+    .hero-actions { display: flex; gap: 12px; }
+    .btn-white { padding: 11px 22px; background: white; color: var(--accent); border: none; border-radius: var(--radius-sm); font-family: var(--font-body); font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-white:hover { opacity: 0.9; }
+    .btn-ghost { padding: 11px 22px; background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-sm); font-family: var(--font-body); font-size: 14px; cursor: pointer; transition: background 0.15s; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-ghost:hover { background: rgba(255,255,255,0.18); }
+    .btn svg { width: 16px; height: 16px; }
+
+    /* BODY */
+    .welcome-body { padding: 36px 48px; }
+
+    /* QUICK ACTIONS */
+    .section-label { font-size: 11px; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; }
+    .quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 36px; }
+    .quick-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      text-decoration: none; color: inherit;
+      transition: all 0.2s; cursor: pointer; display: block;
+    }
+    .quick-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(29,92,77,0.1); }
+    .quick-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-light); display: grid; place-items: center; margin-bottom: 14px; }
+    .quick-icon svg { width: 20px; height: 20px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
+    .quick-title { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+    .quick-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+
+    /* TWO COL */
+    .two-col { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+    .card-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .card-title a { font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 400; }
+
+    /* CHECKLIST */
+    .checklist { display: flex; flex-direction: column; gap: 10px; }
+    .check-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .check-item.done { opacity: 0.5; }
+    .check-circle { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; margin-top: 1px; display: grid; place-items: center; }
+    .check-circle.filled { background: var(--accent); border-color: var(--accent); }
+    .check-circle.filled svg { width: 12px; height: 12px; stroke: white; fill: none; stroke-width: 2.5; }
+    .check-text { font-size: 13px; font-weight: 500; }
+    .check-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ANNOUNCEMENTS */
+    .announce-list { display: flex; flex-direction: column; gap: 12px; }
+    .announce-item { padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .announce-tag { font-size: 10px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; margin-bottom: 6px; display: inline-block; }
+    .tag-update { background: var(--accent-light); color: var(--accent); }
+    .tag-policy { background: #FBF2E8; color: #B8752A; }
+    .tag-alert { background: #FAEAE8; color: #C04A3B; }
+    .announce-title { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+    .announce-meta { font-size: 12px; color: var(--text-muted); }
+
+    @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    .hero-content { animation: slideUp 0.5s ease both; }
+    .quick-card:nth-child(1) { animation: slideUp 0.4s 0.1s ease both; }
+    .quick-card:nth-child(2) { animation: slideUp 0.4s 0.15s ease both; }
+    .quick-card:nth-child(3) { animation: slideUp 0.4s 0.2s ease both; }
+    .quick-card:nth-child(4) { animation: slideUp 0.4s 0.25s ease both; }
+  </style>
+{% endblock %}
+
+{% block content %}
+    <div class="welcome-hero">
+      <div class="hero-content">
+        <div class="hero-greeting">Monday, April 20, 2026 · Good morning</div>
+        <h1 class="hero-title">Welcome back,<br><em>Dr. Idrissi.</em></h1>
+        <p class="hero-desc">You have 8 appointments scheduled today and 3 pending lab results awaiting review. Your hand tracking session is ready.</p>
+        <div class="hero-actions">
+          <a href="{% url 'tracker:home' %}" class="btn-white">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Go to Dashboard
+          </a>
+          <a href="{% url 'tracker:patient-list' %}" class="btn-ghost">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            View Patients
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="welcome-body">
+      <div class="section-label">Quick Actions</div>
+      <div class="quick-grid">
+        <a href="{% url 'tracker:patient-list' %}" class="quick-card">
+          <div class="quick-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
+          <div class="quick-title">New Patient</div>
+          <div class="quick-desc">Register a new patient and set up records</div>
+        </a>
+        <a href="#" class="quick-card">
+          <div class="quick-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="9" y1="16" x2="9" y2="16" stroke-linecap="round" stroke-width="2.5"/><line x1="12" y1="16" x2="12" y2="16" stroke-linecap="round" stroke-width="2.5"/></svg></div>
+          <div class="quick-title">Schedule Appointment</div>
+          <div class="quick-desc">Book a new consultation or follow-up</div>
+        </a>
+        <a href="{% url 'tracker:hand_tracking' %}" class="quick-card">
+          <div class="quick-icon"><svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg></div>
+          <div class="quick-title">Hand Tracking</div>
+          <div class="quick-desc">Start a motor assessment session</div>
+        </a>
+        <a href="#" class="quick-card">
+          <div class="quick-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+          <div class="quick-title">Lab Results</div>
+          <div class="quick-desc">3 new results pending your review</div>
+        </a>
+      </div>
+
+      <div class="two-col">
+        <div class="card">
+          <div class="card-title">Getting Started Checklist <a href="#">View all</a></div>
+          <div class="checklist">
+            <div class="check-item done">
+              <div class="check-circle filled"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div><div class="check-text">Set up your profile</div><div class="check-sub">Add specialty, license number, and contact info</div></div>
+            </div>
+            <div class="check-item done">
+              <div class="check-circle filled"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div><div class="check-text">Connect to hospital network</div><div class="check-sub">SSO authentication verified</div></div>
+            </div>
+            <div class="check-item">
+              <div class="check-circle"></div>
+              <div><div class="check-text">Review patient intake forms</div><div class="check-sub">2 new patients require form review</div></div>
+            </div>
+            <div class="check-item">
+              <div class="check-circle"></div>
+              <div><div class="check-text">Enable hand tracking module</div><div class="check-sub">Calibrate camera for motor assessments</div></div>
+            </div>
+            <div class="check-item">
+              <div class="check-circle"></div>
+              <div><div class="check-text">Configure notification preferences</div><div class="check-sub">Set up alerts for critical vitals</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Announcements <a href="#">See all</a></div>
+          <div class="announce-list">
+            <div class="announce-item">
+              <span class="announce-tag tag-alert">Critical</span>
+              <div class="announce-title">EHR downtime scheduled</div>
+              <div class="announce-meta">April 22 · 02:00–04:00 AM</div>
+            </div>
+            <div class="announce-item">
+              <span class="announce-tag tag-update">Update</span>
+              <div class="announce-title">MediTrack v3.4 released</div>
+              <div class="announce-meta">New hand tracking accuracy improvements</div>
+            </div>
+            <div class="announce-item">
+              <span class="announce-tag tag-policy">Policy</span>
+              <div class="announce-title">Updated data retention policy</div>
+              <div class="announce-meta">Effective May 1 — review required</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+{% endblock %}

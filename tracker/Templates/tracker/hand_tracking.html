@@ -1,0 +1,456 @@
+{% extends 'tracker/base.html' %}
+
+{% block extra_css %}
+  <style>
+    .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+    .page-header h1 { font-family: var(--font-display); font-size: 30px; letter-spacing: -0.4px; }
+    .page-header p { color: var(--text-secondary); font-size: 14px; margin-top: 3px; }
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: var(--radius-sm); font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: all 0.15s; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-danger { background: var(--danger); color: white; border-color: var(--danger); }
+    .btn-danger:hover { background: #a83f31; }
+    .btn-secondary { background: var(--surface); color: var(--text-primary); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--surface-alt); }
+    .btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .btn:disabled { opacity: 0.5; pointer-events: none; }
+
+    .main-grid { display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+    .card-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+    /* CAMERA */
+    .camera-container {
+      position: relative; background: #0F1512;
+      border-radius: var(--radius); overflow: hidden;
+      aspect-ratio: 4/3;
+    }
+    #videoElement { width: 100%; height: 100%; object-fit: cover; display: block; transform: scaleX(-1); }
+    #trackingCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; transform: scaleX(-1); }
+    .camera-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; background: #0F1512; }
+    .camera-overlay.hidden { display: none; }
+    .camera-idle-icon { width: 64px; height: 64px; background: rgba(255,255,255,0.08); border-radius: 50%; display: grid; place-items: center; }
+    .camera-idle-icon svg { width: 32px; height: 32px; stroke: rgba(255,255,255,0.4); fill: none; stroke-width: 1.5; }
+    .camera-idle-text { color: rgba(255,255,255,0.5); font-size: 14px; text-align: center; }
+    .camera-badge {
+      position: absolute; top: 14px; left: 14px;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
+      color: white; font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .rec-dot { width: 7px; height: 7px; background: var(--danger); border-radius: 50%; }
+    .rec-dot.blink { animation: blink 1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    .fps-badge { position: absolute; top: 14px; right: 14px; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); color: rgba(255,255,255,0.6); font-size: 11px; padding: 4px 10px; border-radius: 20px; }
+
+    .cam-controls { display: flex; gap: 10px; margin-top: 14px; }
+
+    /* METRICS */
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .metric-box { background: var(--surface-alt); border-radius: var(--radius-sm); padding: 14px; }
+    .metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 4px; }
+    .metric-val { font-family: var(--font-display); font-size: 22px; letter-spacing: -0.3px; }
+    .metric-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    /* FINGER BARS */
+    .finger-list { display: flex; flex-direction: column; gap: 10px; }
+    .finger-row { display: flex; align-items: center; gap: 10px; }
+    .finger-name { font-size: 12px; color: var(--text-secondary); width: 70px; }
+    .finger-bar-bg { flex: 1; height: 8px; background: var(--surface-alt); border-radius: 4px; overflow: hidden; }
+    .finger-bar { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.3s ease; }
+    .finger-val { font-size: 11px; color: var(--text-muted); width: 32px; text-align: right; }
+
+    /* LOG */
+    .session-log { display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto; }
+    .log-entry { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; }
+    .log-time { color: var(--text-muted); white-space: nowrap; }
+    .log-msg { color: var(--text-secondary); }
+
+    /* PATIENT SELECT */
+    select { width: 100%; padding: 9px 12px; font-family: var(--font-body); font-size: 13px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); outline: none; cursor: pointer; }
+    select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(29,92,77,0.1); }
+
+    .status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .pill-idle { background: var(--surface-alt); color: var(--text-muted); }
+    .pill-live { background: var(--danger-light); color: var(--danger); }
+    .pill-live .dot { width: 6px; height: 6px; background: var(--danger); border-radius: 50%; animation: blink 1s infinite; }
+  </style>
+{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+      <div>
+        <h1>Hand Tracking</h1>
+        <p>Motor assessment via real-time landmark detection</p>
+      </div>
+      <span class="status-pill pill-idle" id="sessionPill">● Idle</span>
+    </div>
+
+    <div class="main-grid">
+      <!-- LEFT: Camera -->
+      <div>
+        <div class="card" style="padding:18px;">
+          <div class="card-title">
+            Camera Feed
+            <span id="fpsBadge" style="font-size:12px;color:var(--text-muted);font-weight:400;">— fps</span>
+          </div>
+          <div class="camera-container">
+            <video id="videoElement" autoplay playsinline muted></video>
+            <canvas id="trackingCanvas"></canvas>
+            <div class="camera-overlay" id="cameraOverlay">
+              <div class="camera-idle-icon"><svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg></div>
+              <div class="camera-idle-text">Camera inactive<br><span style="font-size:12px;">Press Start to begin session</span></div>
+            </div>
+            <div class="camera-badge" id="recBadge" style="display:none;"><div class="rec-dot blink"></div>LIVE</div>
+          </div>
+          <div class="cam-controls">
+            <button class="btn btn-primary" id="startBtn" onclick="startTracking()">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Session
+            </button>
+            <button class="btn btn-danger" id="stopBtn" onclick="stopTracking()" disabled>
+              <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+              Stop
+            </button>
+            <button class="btn btn-secondary" id="saveBtn" onclick="saveSession()" disabled>
+              <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save Report
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Metrics + Log -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+
+        <div class="card">
+          <div class="card-title">Patient</div>
+          <select>
+            <option>Sara Ziani — #PT-0046</option>
+            <option>Karima Alaoui — #PT-0041</option>
+            <option>Mohamed Benali — #PT-0044</option>
+          </select>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Session Metrics</div>
+          <div class="metric-grid">
+            <div class="metric-box">
+              <div class="metric-label">Hands Detected</div>
+              <div class="metric-val" id="handsDetected">0</div>
+              <div class="metric-sub">of 2 possible</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Confidence</div>
+              <div class="metric-val" id="confidence">—</div>
+              <div class="metric-sub">avg. score</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Duration</div>
+              <div class="metric-val" id="duration">0:00</div>
+              <div class="metric-sub">this session</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-label">Frames</div>
+              <div class="metric-val" id="frameCount">0</div>
+              <div class="metric-sub">processed</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Finger Angles</div>
+          <div class="finger-list">
+            <div class="finger-row"><span class="finger-name">Thumb</span><div class="finger-bar-bg"><div class="finger-bar" id="fThumb" style="width:0%"></div></div><span class="finger-val" id="fThumbV">—</span></div>
+            <div class="finger-row"><span class="finger-name">Index</span><div class="finger-bar-bg"><div class="finger-bar" id="fIndex" style="width:0%"></div></div><span class="finger-val" id="fIndexV">—</span></div>
+            <div class="finger-row"><span class="finger-name">Middle</span><div class="finger-bar-bg"><div class="finger-bar" id="fMiddle" style="width:0%"></div></div><span class="finger-val" id="fMiddleV">—</span></div>
+            <div class="finger-row"><span class="finger-name">Ring</span><div class="finger-bar-bg"><div class="finger-bar" id="fRing" style="width:0%"></div></div><span class="finger-val" id="fRingV">—</span></div>
+            <div class="finger-row"><span class="finger-name">Pinky</span><div class="finger-bar-bg"><div class="finger-bar" id="fPinky" style="width:0%"></div></div><span class="finger-val" id="fPinkyV">—</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Session Log</div>
+          <div class="session-log" id="sessionLog">
+            <div class="log-entry"><span class="log-time">—</span><span class="log-msg">Session not started</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+  <!-- MediaPipe via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+
+  <script>
+    const video = document.getElementById('videoElement');
+    const canvas = document.getElementById('trackingCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let isTracking = false;
+    let startTime = null;
+    let frames = 0;
+    let lastFpsTime = Date.now();
+    let fpsFrames = 0;
+    let timerInterval = null;
+    let mpHands = null;
+    let mpCamera = null;
+    let stream = null;
+
+    // Simulated angles when no MediaPipe available
+    let simMode = false;
+    let simInterval = null;
+
+    function addLog(msg) {
+      const log = document.getElementById('sessionLog');
+      const now = new Date();
+      const t = now.toTimeString().slice(0,8);
+      const el = document.createElement('div');
+      el.className = 'log-entry';
+      el.innerHTML = `<span class="log-time">${t}</span><span class="log-msg">${msg}</span>`;
+      if (log.children[0]?.textContent.includes('not started')) log.innerHTML = '';
+      log.prepend(el);
+      if (log.children.length > 20) log.removeChild(log.lastChild);
+    }
+
+    async function startTracking() {
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      document.getElementById('saveBtn').disabled = false;
+      document.getElementById('cameraOverlay').classList.add('hidden');
+      document.getElementById('recBadge').style.display = 'flex';
+      document.getElementById('sessionPill').className = 'status-pill pill-live';
+      document.getElementById('sessionPill').innerHTML = '<span class="dot"></span> Live';
+      startTime = Date.now();
+      frames = 0;
+      addLog('Session started');
+
+      timerInterval = setInterval(updateTimer, 1000);
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' } });
+        video.srcObject = stream;
+        await video.play();
+        isTracking = true;
+
+        // Try MediaPipe
+        if (typeof Hands !== 'undefined') {
+          mpHands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+          mpHands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
+          mpHands.onResults(onResults);
+          if (typeof Camera !== 'undefined') {
+            mpCamera = new Camera(video, {
+              onFrame: async () => { if(isTracking) await mpHands.send({ image: video }); },
+              width: 640, height: 480
+            });
+            mpCamera.start();
+          }
+        } else {
+          // Simulation mode - draw animated landmarks
+          simMode = true;
+          addLog('Demo mode (camera access granted)');
+          startSimulation();
+          renderCameraLoop();
+        }
+      } catch(e) {
+        // No camera - full simulation
+        simMode = true;
+        addLog('Demo mode — camera unavailable');
+        document.getElementById('cameraOverlay').style.display = 'flex';
+        document.getElementById('cameraOverlay').style.background = '#0F2820';
+        document.getElementById('cameraOverlay').innerHTML = `<div style="color:rgba(255,255,255,0.5);font-size:13px;text-align:center;">Demo mode<br><span style="font-size:11px;opacity:0.6;">Live landmark simulation</span></div>`;
+        canvas.width = 640; canvas.height = 480;
+        startSimulation();
+        renderSimLoop();
+      }
+    }
+
+    function onResults(results) {
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      frames++;
+      fpsFrames++;
+      const now = Date.now();
+      if (now - lastFpsTime >= 1000) {
+        document.getElementById('fpsBadge').textContent = fpsFrames + ' fps';
+        fpsFrames = 0; lastFpsTime = now;
+      }
+      document.getElementById('frameCount').textContent = frames;
+
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        document.getElementById('handsDetected').textContent = results.multiHandLandmarks.length;
+        document.getElementById('confidence').textContent = '0.92';
+
+        for (const landmarks of results.multiHandLandmarks) {
+          drawConnectors(ctx, landmarks, HAND_CONNECTIONS, { color: 'rgba(29,92,77,0.7)', lineWidth: 2 });
+          drawLandmarks(ctx, landmarks, { color: '#1D5C4D', fillColor: '#E8F2EF', radius: 4 });
+          updateFingerBars(landmarks);
+        }
+      } else {
+        document.getElementById('handsDetected').textContent = '0';
+        clearFingerBars();
+      }
+    }
+
+    function renderCameraLoop() {
+      if (!isTracking || simMode) return;
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      frames++;
+      fpsFrames++;
+      const now = Date.now();
+      if (now - lastFpsTime >= 1000) {
+        document.getElementById('fpsBadge').textContent = fpsFrames + ' fps';
+        fpsFrames = 0; lastFpsTime = now;
+      }
+      document.getElementById('frameCount').textContent = frames;
+      requestAnimationFrame(renderCameraLoop);
+    }
+
+    // Simulated hand landmarks
+    let simT = 0;
+    function getSimLandmarks(t) {
+      const cx = 0.5, cy = 0.5;
+      const fingers = [
+        [cx-0.07, cy+0.15], [cx-0.04, cy+0.05], [cx-0.04, cy-0.02], [cx-0.04, cy-0.08],
+        [cx-0.08, cy+0.06], [cx-0.10, cy-0.08], [cx-0.11, cy-0.16], [cx-0.11, cy-0.22],
+        [cx-0.03, cy+0.07], [cx-0.03, cy-0.10], [cx-0.03, cy-0.19], [cx-0.03, cy-0.26],
+        [cx+0.04, cy+0.07], [cx+0.04, cy-0.09], [cx+0.04, cy-0.19], [cx+0.04, cy-0.26],
+        [cx+0.10, cy+0.08], [cx+0.10, cy-0.06], [cx+0.10, cy-0.15], [cx+0.10, cy-0.22],
+        [cx-0.03, cy+0.20]
+      ];
+      // Animate fingers opening/closing
+      const wave = Math.sin(t * 0.02) * 0.5 + 0.5;
+      return fingers.map(([x,y], i) => {
+        if (i > 4) { // fingers - animate
+          const fi = Math.floor((i-4)/4);
+          const ff = (i-4) % 4;
+          const flex = Math.sin(t * 0.03 + fi * 0.8) * ff * 0.05;
+          return { x: x + flex, y: y - flex * 0.5 };
+        }
+        return { x, y };
+      });
+    }
+
+    const HAND_CONNECTIONS_SIM = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],[0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]];
+
+    function renderSimLoop() {
+      if (!isTracking) return;
+      simT++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      frames++;
+      fpsFrames++;
+      const now = Date.now();
+      if (now - lastFpsTime >= 1000) {
+        document.getElementById('fpsBadge').textContent = fpsFrames + ' fps';
+        fpsFrames = 0; lastFpsTime = now;
+      }
+      document.getElementById('frameCount').textContent = frames;
+
+      const lm = getSimLandmarks(simT);
+      const W = canvas.width, H = canvas.height;
+
+      // Draw connections
+      ctx.strokeStyle = 'rgba(29,92,77,0.8)';
+      ctx.lineWidth = 2.5;
+      for (const [a, b] of HAND_CONNECTIONS_SIM) {
+        ctx.beginPath();
+        ctx.moveTo(lm[a].x * W, lm[a].y * H);
+        ctx.lineTo(lm[b].x * W, lm[b].y * H);
+        ctx.stroke();
+      }
+      // Draw landmarks
+      for (const pt of lm) {
+        ctx.beginPath();
+        ctx.arc(pt.x * W, pt.y * H, 5, 0, Math.PI*2);
+        ctx.fillStyle = '#E8F2EF';
+        ctx.fill();
+        ctx.strokeStyle = '#1D5C4D';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      document.getElementById('handsDetected').textContent = '1';
+      document.getElementById('confidence').textContent = (0.88 + Math.sin(simT*0.05)*0.05).toFixed(2);
+      updateFingerBarsFromSim(simT);
+      requestAnimationFrame(renderSimLoop);
+    }
+
+    function startSimulation() {
+      canvas.width = 640; canvas.height = 480;
+    }
+
+    function updateTimer() {
+      if (!startTime) return;
+      const s = Math.floor((Date.now() - startTime) / 1000);
+      const m = Math.floor(s / 60);
+      const sec = s % 60;
+      document.getElementById('duration').textContent = m + ':' + String(sec).padStart(2,'0');
+    }
+
+    function updateFingerBars(landmarks) {
+      const tips = [4, 8, 12, 16, 20];
+      const bases = [2, 5, 9, 13, 17];
+      const names = ['Thumb','Index','Middle','Ring','Pinky'];
+      const ids = ['fThumb','fIndex','fMiddle','fRing','fPinky'];
+      tips.forEach((tip, i) => {
+        const dy = landmarks[bases[i]].y - landmarks[tip].y;
+        const pct = Math.min(100, Math.max(0, (dy + 0.1) * 300));
+        document.getElementById(ids[i]).style.width = pct + '%';
+        document.getElementById(ids[i]+'V').textContent = Math.round(pct) + '°';
+      });
+    }
+
+    function updateFingerBarsFromSim(t) {
+      const angles = [
+        50 + Math.sin(t * 0.04) * 40,
+        60 + Math.sin(t * 0.03 + 1) * 35,
+        70 + Math.sin(t * 0.035 + 2) * 25,
+        55 + Math.sin(t * 0.04 + 3) * 30,
+        45 + Math.sin(t * 0.05 + 4) * 35
+      ];
+      const ids = ['fThumb','fIndex','fMiddle','fRing','fPinky'];
+      angles.forEach((a, i) => {
+        document.getElementById(ids[i]).style.width = Math.max(0,a) + '%';
+        document.getElementById(ids[i]+'V').textContent = Math.round(Math.max(0,a)) + '°';
+      });
+    }
+
+    function clearFingerBars() {
+      ['fThumb','fIndex','fMiddle','fRing','fPinky'].forEach(id => {
+        document.getElementById(id).style.width = '0%';
+        document.getElementById(id+'V').textContent = '—';
+      });
+    }
+
+    function stopTracking() {
+      isTracking = false;
+      if (mpCamera) { mpCamera.stop(); mpCamera = null; }
+      if (mpHands) { mpHands.close(); mpHands = null; }
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+      if (timerInterval) clearInterval(timerInterval);
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+      document.getElementById('recBadge').style.display = 'none';
+      document.getElementById('sessionPill').className = 'status-pill pill-idle';
+      document.getElementById('sessionPill').innerHTML = '● Idle';
+      addLog('Session stopped · ' + document.getElementById('frameCount').textContent + ' frames recorded');
+      clearFingerBars();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function saveSession() {
+      addLog('Report saved to patient record');
+      document.getElementById('saveBtn').disabled = true;
+      setTimeout(() => document.getElementById('saveBtn').disabled = false, 2000);
+    }
+  </script>
+{% endblock %}
